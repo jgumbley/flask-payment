@@ -7,14 +7,14 @@ Description goes here...
 Links
 `````
 
-* `documentation <http://packages.python.org/Flask%20Payments>`_
+* `documentation <http://packages.python.org/Flask-Payments>`_
 
 """
 from setuptools import setup
 
 
 setup(
-    name='Flask Payments',
+    name='Flask-Payments',
     version='0.1',
     url='<enter URL here>',
     license='BSD',
