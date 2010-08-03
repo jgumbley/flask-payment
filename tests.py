@@ -5,7 +5,7 @@ from __future__ import with_statement
 import unittest
 
 from flask import Flask, g
-from flaskext.payment import Payments, Transaction, PaymentValidationError
+from flaskext.payments import Payments, Transaction, Authorisation, PaymentValidationError
 
 class TestCase(unittest.TestCase):
 
@@ -33,29 +33,33 @@ class TestCase(unittest.TestCase):
 
         self.ctx.pop()
 
+def getValidTransaction():
+    trans = Transaction({
+        'amt': '9.95',
+        'inv': 'inv',
+        'custom': 'custom',
+        'next': 'http://www.example.com/next/',
+        'returnurl': 'http://www.example.com/pay/',
+        'cancelurl': 'http://www.example.com/cancel/',
+        'firstname': 'Brave',
+        'lastname': 'Star',
+        'street': '1 Main St',
+        'city': u'San Jose',
+        'state': 'CA',
+        'countrycode': 'US',
+        'zip': '95131',
+        'expdate': '012019',
+        'cvv2': '037',
+        'acct': '4797503429879309',
+        'creditcardtype': 'visa',
+        'ipaddress': '10.0.1.199',
+        })
+    return trans
+
 class TestTransaction(TestCase):
 
     def test_initialize(self):
-        trans = Transaction({
-            'amt': '9.95',
-            'inv': 'inv',
-            'custom': 'custom',
-            'next': 'http://www.example.com/next/',
-            'returnurl': 'http://www.example.com/pay/',
-            'cancelurl': 'http://www.example.com/cancel/'
-            'firstname': 'Brave',
-            'lastname': 'Star',
-            'street': '1 Main St',
-            'city': u'San Jose',
-            'state': 'CA',
-            'countrycode': 'US',
-            'zip': '95131',
-            'expdate': '012019',
-            'cvv2': '037',
-            'acct': '4797503429879309',
-            'creditcardtype': 'visa',
-            'ipaddress': '10.0.1.199',
-            })
+        trans = getValidTransaction() 
 
         #assert trans.sender == "support@mysite.com"
         #assert msg.recipients == ["to@example.com"]
