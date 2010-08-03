@@ -32,8 +32,7 @@ class Payments(object):
             self.init_app(app)
 
     def init_app(self, app):
-        """
-        Initializes payment gateway config from the application
+        """Initializes payment gateway config from the application
         settings.
 
         You can use this if you want to set up your Payment instance
@@ -56,18 +55,16 @@ class Payments(object):
         self.app = app
 
     def process(self, trans):
-        """
-        The transaction is validated and only if valid will the appropriate
+        """The transaction is validated and only if valid will the appropriate
         webservice be invoked.
 
         """
         if trans.validate():
-            return Authorisation()        
+            return Authorisation()
         else: raise PaymentTransactionValidationError()
 
 class Transaction(object):
-    """
-    the payment request value object, with some validation logic
+    """The payment request value object, with some validation logic
     """
 
     def validate(self):
@@ -82,10 +79,9 @@ class Transaction(object):
         pass
 
 class Authorisation(object):
-    """
-    the payment response value object
+    """The payment response value object
     
-    status will be true if payment processed OK and False otherwise
+    Status will be true if payment processed OK and False otherwise
     other details about transaction outcome attached to this DTO
 
     """

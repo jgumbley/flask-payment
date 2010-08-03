@@ -10,16 +10,10 @@ from flaskext.payments import Payments, Transaction, Authorisation, PaymentTrans
 class TestCase(unittest.TestCase):
 
     TESTING = True
+    
+    PAYPAL_API_ENDPOINT = 'https://api-3t.sandbox.paypal.com/nvp'
+    PAYPAL_URL = 'https://www.sandbox.paypal.com/webscr&cmd=_express-checkout&token='
    
-    # Perhaps make a PaypalTestCase later
-    PAYPAL_API_ENDPOINT = ''
-    PAYPAL_URL = ''
-
-    PAYPAL_API_USER = '' # Edit this to your API user name
-    PAYPAL_API_PWD = ''# Edit this to your API password
-    PAYPAL_API_SIGNATURE = '' # Edit this to your API signature
-    PAYPAL_API_VERSION = '53.0' 
-
     def setUp(self):
 
         self.app = Flask(__name__)
@@ -36,6 +30,7 @@ class TestCase(unittest.TestCase):
     def tearDown(self):
 
         self.ctx.pop()
+
 
 def getValidTransaction():
     trans = Transaction({
@@ -77,7 +72,6 @@ class TestPayments(TestCase):
 
     def test_process(self):
 
-        # probably need a test object factory
         trans = getValidTransaction()
 
         authorisation = self.payments.process(trans)
