@@ -3,15 +3,20 @@
     flaskext.payments
     ~~~~~~~~~~~~~~~~~
 
-    Description of the module goes here...
+    Generic Payment gateway classes for Flask Payment
+    May be dirtied with Paypal classes in the first instance
 
     :copyright: (c) 2010 by jgumbley.
     :license: BSD, see LICENSE for more details.
 """
 
-class PaymentValidationError(Exception): pass
+class PaymentGatewayNotProperlyInitialisedError(Exception): pass
 
-class PaymentWebserviceSystemError(Exception): pass
+class PaymentTransactionNotValidForConfiguredGatewayError(Exception): pass
+
+class PaymentTransactionValidationError(Exception): pass
+
+class PaymentWebServiceSystemError(Exception): pass
 
 class Payments(object):
     """
@@ -35,33 +40,57 @@ class Payments(object):
         at configuration time.
 
         :param app: Flask application instance
+
         """
         
         # here is the pattern for defaults:
-        # port = app.config.get('MAIL_PORT', 25)
-
+        # port = 
+        # app.config.get('MAIL_PORT', 25)
+        
+        # want to fail early if gateway not properly configured
+        if False:
+            raise PaymentGatewayNotProperlyInitialisedError(Exception)
+        
         self.testing = app.config['TESTING']
 
         self.app = app
 
     def process(self, trans):
-        return Authorisation()
+        """
+        The transaction is validated and only if valid will the appropriate
+        webservice be invoked.
+
+        """
+        if trans.validate():
+            return Authorisation()        
+        else: raise PaymentTransactionValidationError()
 
 class Transaction(object):
     """
-
+    the payment request value object, with some validation logic
     """
+
+    def validate(self):
+        """
+        validate the details of the payment, i.e. run regex on credit card
+        number, ensure all required fields are filled etc.
+        
+        """
+        return True
     
     def __init__(self, params):
         pass
 
 class Authorisation(object):
     """
+    the payment response value object
+    
+    status will be true if payment processed OK and False otherwise
+    other details about transaction outcome attached to this DTO
 
     """
 
     status = False
 
-    pass
 
 

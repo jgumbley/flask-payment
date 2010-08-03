@@ -1,0 +1,4 @@
+PAYPAL_API_USER = '' # Edit this to your API user name
+PAYPAL_API_PWD = ''# Edit this to your API password
+PAYPAL_API_SIGNATURE = '' # Edit this to your API signature
+

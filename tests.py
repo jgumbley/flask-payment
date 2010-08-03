@@ -5,7 +5,7 @@ from __future__ import with_statement
 import unittest
 
 from flask import Flask, g
-from flaskext.payments import Payments, Transaction, Authorisation, PaymentValidationError
+from flaskext.payments import Payments, Transaction, Authorisation, PaymentTransactionValidationError
 
 class TestCase(unittest.TestCase):
 
@@ -14,6 +14,7 @@ class TestCase(unittest.TestCase):
     # Perhaps make a PaypalTestCase later
     PAYPAL_API_ENDPOINT = ''
     PAYPAL_URL = ''
+
     PAYPAL_API_USER = '' # Edit this to your API user name
     PAYPAL_API_PWD = ''# Edit this to your API password
     PAYPAL_API_SIGNATURE = '' # Edit this to your API signature
@@ -23,6 +24,9 @@ class TestCase(unittest.TestCase):
 
         self.app = Flask(__name__)
         self.app.config.from_object(self)
+
+        # need to keep personal API details out of scm
+        self.app.config.from_pyfile('yourpaypal.settings')
         
         self.payments = Payments(self.app)
 
