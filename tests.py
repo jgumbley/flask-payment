@@ -12,7 +12,7 @@ class TestCase(unittest.TestCase):
     TESTING = True
     
     PAYPAL_API_ENDPOINT = 'https://api-3t.sandbox.paypal.com/nvp'
-    PAYPAL_URL = 'https://www.sandbox.paypal.com/webscr&cmd=_express-checkout&token='
+    PAYPAL_API_URL = 'https://www.sandbox.paypal.com/webscr&cmd=_express-checkout&token='
    
     def setUp(self):
 
@@ -74,12 +74,11 @@ class TestPayments(TestCase):
 
         trans = getValidTransaction()
 
-        authorisation = self.payments.process(trans)
+        auth = self.payments.process(trans)
 
-        assert authorisation.status 
+        print auth.express_token 
+        print auth.url
 
-class TestConnection(TestCase):
-    """ testing of some lower level stuff? """
+        assert auth.status 
 
-    pass
 
