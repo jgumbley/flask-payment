@@ -8,7 +8,8 @@ from flask import Flask, g
 from flaskext.payments import Payments, Transaction, PaymentTransactionValidationError
 
 class PaymentsTestCase(unittest.TestCase):
-
+    """Base class for test cases for Flask Payments 
+    """
     TESTING = True
 
     # Which gateway implementation class to bind to for payments specified in 
@@ -16,7 +17,6 @@ class PaymentsTestCase(unittest.TestCase):
     PAYMENT_API = None
     
     def setUp(self):
-        
         self.app = Flask(__name__)
         self.app.config.from_object(self)
 
@@ -28,7 +28,6 @@ class PaymentsTestCase(unittest.TestCase):
         self.ctx.push()
 
     def tearDown(self):
-
         self.ctx.pop()
 
 class PayPalTestCase(PaymentsTestCase):
@@ -70,15 +69,14 @@ class WalkingSkeleton(PayPalTestCase):
         trans = self.payments.setupRedirect(trans)
         
         # this seems pretty unconventional for a test
+        # but we need to dump the user at the paypal site so they can validate
+        # the token
         webbrowser.open(trans.redirect_url)
-        # grab it back from the tester
+        # and there doesn't seem to be a way to mock that out, so really need to
+        # do this and accept input back from the tester
         trans.pay_id = raw_input(">")
         
         # now call authorise
         trans = self.payments.authorise(trans)
         print trans._raw
         assert trans.authorised == False
-
-         
-
-
