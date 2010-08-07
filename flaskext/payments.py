@@ -42,9 +42,6 @@ class Payments(object):
         :param app: Flask application instance
 
         """
-        # here is the pattern for defaults:
-        # app.config.get('MAIL_PORT', 25)
-       
         # initialise gateway based on configuration
         self._init_gateway(app)
        
@@ -62,7 +59,7 @@ class Payments(object):
         """
         self.payment_api = app.config['PAYMENT_API']
         
-        if self.payment_api == 'PayPal':
+        if self.payment_api == 'PayPal': # only PalPal is possible ATM
             self.gateway = PayPalGateway(app)
         else:
             raise PaymentGatewayNotProperlyInitialisedError(Exception)
@@ -83,7 +80,7 @@ class Payments(object):
 
     def authorise(self, trans):
         """Returns a valid authorisation (accepted or declined) or an error,
-        which can be application or a system error.
+        which can be application (i.e. validation) or a system error (i.e. 500).
         
         The transaction is subject to gernic validatation, i.e. does it have
         necessary fields and do they add up, and only if valid will the
@@ -97,6 +94,11 @@ class Payments(object):
 
 class Transaction(object):
     """The payment request value object, with some validation logic
+    It look like the way this is going the various gateways will be able to add
+    whatever they like to this as and when they want.
+
+    Not sure whether to subclass this and use some kind of factory so the app
+    will get the right one depending on how they've instantiated Payments.
     """
 
     def validate(self):
@@ -109,49 +111,16 @@ class Transaction(object):
 
 
     def __init__(self):
+        self.authorised = False
         pass
 
-class Authorisation(object):
-    """The payment response value object
-    
-    Status will be true if payment processed OK and False otherwise
-    other details about transaction outcome attached to this DTO
-
-    """
-
-    status = False
 
 # ------------------------------------------------------------------------
-
-
-# PayPal python NVP API wrapper class.
-# This is a sample to help others get started on working
-# with the PayPal NVP API in Python. 
-# This is not a complete reference! Be sure to understand
-# what this class is doing before you try it on production servers!
-# ...use at your own peril.
-
-## see https://www.paypal.com/IntegrationCenter/ic_nvp.html
-## and
-## https://www.paypal.com/en_US/ebook/PP_NVPAPI_DeveloperGuide/index.html
-## for more information.
-
-# by Mike Atlas / LowSingle.com / MassWrestling.com, September 2007
-# No License Expressed. Feel free to distribute, modify, 
-#  and use in any open or closed source project without credit to the author
-
-# Example usage: ===============
-#    paypal = PayPal()
-#    pp_token = paypal.SetExpressCheckout(100)
-#    express_token = paypal.GetExpressCheckoutDetails(pp_token)
-#    url= paypal.PAYPAL_URL + express_token
-#    HttpResponseRedirect(url) ## django specific http redirect call for payment
-
 
 import urllib, datetime
 
 class PayPalGateway:
-    """ #PayPal utility class"""
+    """ Specific Impementation for PayPal WPP"""
     
     def __init__(self, app):
         # Need to catch value error and throw as config error
@@ -188,12 +157,17 @@ class PayPalGateway:
         except AttributeError:
             raise PaymentTransactionValidationError()
 
+    # why is this two methods surely this could be easier?
 
     def _setupExpressTransfer(self, trans):
         """ add details to transaction to allow it to be forwarded to the 
         third party gateway 
         """
-        trans.paypal_express_token = self.SetExpressCheckout(trans.amount)
+        trans.paypal_express_token = self.SetExpressCheckout(
+                trans.amount,
+                trans.return_url,
+                trans.cancel_url
+                )
         trans.redirect_url = self.PAYPAL_URL + trans.paypal_express_token             
         return trans
 
@@ -208,22 +182,48 @@ class PayPalGateway:
         """
         try:
             if trans.type == 'Express':
-                return self._processExpress(trans)
+                return self._authoriseExpress(trans)
             elif trans.type == 'Direct':
                 pass # not implemented yet
             else: raise PaymentTransactionValidationError()
         except AttributeError:
             raise PaymentTransactionValidationError()
 
+    def _authoriseExpress(self, trans):
+        """ calls authorise on payment setup via redirect to paypal
+        """
+        trans._raw = self.DoExpressCheckoutPayment(trans.paypal_express_token,
+                trans.pay_id, trans.amount)  
+        trans.authorised = True 
+        return trans
+        
+
 
     # API METHODS
-    def SetExpressCheckout(self, amount):
+
+    # PayPal python NVP API wrapper class.
+    # This is a sample to help others get started on working
+    # with the PayPal NVP API in Python. 
+    # This is not a complete reference! Be sure to understand
+    # what this class is doing before you try it on production servers!
+    # ...use at your own peril.
+
+    ## see https://www.paypal.com/IntegrationCenter/ic_nvp.html
+    ## and
+    ## https://www.paypal.com/en_US/ebook/PP_NVPAPI_DeveloperGuide/index.html
+    ## for more information.
+
+    # by Mike Atlas / LowSingle.com / MassWrestling.com, September 2007
+    # No License Expressed. Feel free to distribute, modify, 
+#  and use in any open or closed source project without credit to the author
+
+    def SetExpressCheckout(self, amount, return_url, cancel_url):
         params = {
             'METHOD' : "SetExpressCheckout",
             'NOSHIPPING' : 1,
             'PAYMENTACTION' : 'Authorization',
-            'RETURNURL' : 'http://www.jgumbley.com/returnurl', #edit this 
-            'CANCELURL' : 'http://www.jgumbley.com/cancelurl', #edit this 
+            'RETURNURL' : return_url,
+            'CANCELURL' : cancel_url, 
             'AMT' : amount,
         }
 
@@ -234,20 +234,6 @@ class PayPalGateway:
             if token.find("TOKEN=") != -1:
                 response_token = token[ (token.find("TOKEN=")+6):]
         return response_token
-    
-    def GetExpressCheckoutDetails(self, token):
-        params = {
-            'METHOD' : "GetExpressCheckoutDetails",
-            'RETURNURL' : 'http://www.jgumbley.com/returnurl', #edit this 
-            'CANCELURL' : 'http://www.jgumbley.com/cancelurl', #edit this 
-            'TOKEN' : token,
-        }
-        params_string = self.signature + urllib.urlencode(params)
-        response = urllib.urlopen(self.API_ENDPOINT, params_string).read()
-        response_tokens = {}
-        for token in response.split('&'):
-            response_tokens[token.split("=")[0]] = token.split("=")[1]
-        return response_tokens
     
     def DoExpressCheckoutPayment(self, token, payer_id, amt):
         params = {
@@ -267,7 +253,9 @@ class PayPalGateway:
         for key in response_tokens.keys():
                 response_tokens[key] = urllib.unquote(response_tokens[key])
         return response_tokens
-        
+    
+
+    # Get info on transaction
     def GetTransactionDetails(self, tx_id):
         params = {
             'METHOD' : "GetTransactionDetails", 
@@ -281,29 +269,8 @@ class PayPalGateway:
         for key in response_tokens.keys():
                 response_tokens[key] = urllib.unquote(response_tokens[key])
         return response_tokens
-                
-    def MassPay(self, email, amt, note, email_subject):
-        unique_id = str(md5.new(str(datetime.datetime.now())).hexdigest())
-        params = {
-            'METHOD' : "MassPay",
-            'RECEIVERTYPE' : "EmailAddress",
-            'L_AMT0' : amt,
-            'CURRENCYCODE' : 'USD',
-            'L_EMAIL0' : email,
-            'L_UNIQUE0' : unique_id,
-            'L_NOTE0' : note,
-            'EMAILSUBJECT': email_subject,
-        }
-        params_string = self.signature + urllib.urlencode(params)
-        response = urllib.urlopen(self.API_ENDPOINT, params_string).read()
-        response_tokens = {}
-        for token in response.split('&'):
-            response_tokens[token.split("=")[0]] = token.split("=")[1]
-        for key in response_tokens.keys():
-                response_tokens[key] = urllib.unquote(response_tokens[key])
-        response_tokens['unique_id'] = unique_id
-        return response_tokens
-                
+   
+    # Direct payment
     def DoDirectPayment(self, amt, ipaddress, acct, expdate, cvv2, firstname, lastname, cctype, street, city, state, zipcode):
         params = {
             'METHOD' : "DoDirectPayment",
@@ -322,8 +289,8 @@ class PayPalGateway:
             'ZIP':zipcode,
             'COUNTRY' : 'United States',
             'COUNTRYCODE': 'US',
-            'RETURNURL' : 'http://www.yoursite.com/returnurl', #edit this 
-            'CANCELURL' : 'http://www.yoursite.com/cancelurl', #edit this 
+            'RETURNURL' : 'http://www.yoursite.com/returnurl', #why needed? 
+            'CANCELURL' : 'http://www.yoursite.com/cancelurl', # ditto
             'L_DESC0' : "Desc: ",
             'L_NAME0' : "Name: ",
         }

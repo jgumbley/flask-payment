@@ -5,32 +5,25 @@ from __future__ import with_statement
 import unittest
 
 from flask import Flask, g
-from flaskext.payments import Payments, Transaction, Authorisation, PaymentTransactionValidationError
+from flaskext.payments import Payments, Transaction, PaymentTransactionValidationError
 
-class TestCase(unittest.TestCase):
+class PaymentsTestCase(unittest.TestCase):
 
     TESTING = True
 
-    # Based Gateway and Plugin from Martin Fowler PoAEE, which class to bind to
-    # use for payments specified in configuration, and bound by the factory
-    # Payments at startup.
-    PAYMENT_API = 'PayPal'
+    # Which gateway implementation class to bind to for payments specified in 
+    # configuration, and bound at startup.
+    PAYMENT_API = None
     
-    # Define PayPal Specific Stuff
-
-    PAYPAL_API_ENDPOINT = 'https://api-3t.sandbox.paypal.com/nvp'
-    PAYPAL_API_URL = 'https://www.sandbox.paypal.com/webscr&cmd=_express-checkout&token='
-   
     def setUp(self):
-
+        
         self.app = Flask(__name__)
         self.app.config.from_object(self)
 
-        # need to keep personal API details out of scm
-        self.app.config.from_pyfile('yourpaypal.settings')
-        
-        self.payments = Payments(self.app)
+        self.loadPrivateConfig()
 
+        self.payments = Payments(self.app)
+        
         self.ctx = self.app.test_request_context()
         self.ctx.push()
 
@@ -38,59 +31,53 @@ class TestCase(unittest.TestCase):
 
         self.ctx.pop()
 
+class PayPalTestCase(PaymentsTestCase):
+    """ Extending this PaymentsTestCase with PayPal specific configurations
+    """
+    PAYMENT_API = 'PayPal'
 
-def getValidExpressTransaction():
+    # Define PayPal Specific Stuff
+    PAYPAL_API_ENDPOINT = 'https://api-3t.sandbox.paypal.com/nvp'
+    PAYPAL_API_URL = 'https://www.sandbox.paypal.com/webscr&cmd=_express-checkout&token='
+
+    def loadPrivateConfig(self):
+        # need to keep personal API details out of scm
+        self.app.config.from_pyfile('yourpaypal.settings')
+
+
+def getValidWPPExpressTransaction():
+    """Convenience helper to get a valid WPP Express Transaction as a starting
+    point
+    """
     trans = Transaction()
     trans.type = 'Express'
     trans.amount = 100
-    trans.currency = "how?"
+    trans.return_url = 'http://www.jgumbley.com'
+    trans.cancel_url = 'http://www.jgumbley.com'
     return trans
 
-def getValidTransaction():
-    vals = {
-        'amt': '9.95',
-        'inv': 'inv',
-        'custom': 'custom',
-        'next': 'http://www.example.com/next/',
-        'returnurl': 'http://www.example.com/pay/',
-        'cancelurl': 'http://www.example.com/cancel/',
-        'firstname': 'Brave',
-        'lastname': 'Star',
-        'street': '1 Main St',
-        'city': u'San Jose',
-        'state': 'CA',
-        'countrycode': 'US',
-        'zip': '95131',
-        'expdate': '012019',
-        'cvv2': '037',
-        'acct': '4797503429879309',
-        'creditcardtype': 'visa',
-        'ipaddress': '10.0.1.199',
-        }
-
-class TestTransaction(TestCase):
-
-    def test_initialize(self):
-        trans = getValidTransaction() 
-
-        #assert trans.sender == "support@mysite.com"
-        #assert msg.recipients == ["to@example.com"]
-
-
-class TestAuthorisation(TestCase):
-
-    pass
-
-class TestPayments(TestCase):
-
-    def test_process(self):
-
-        trans = getValidExpressTransaction()
-
+import webbrowser
+class WalkingSkeleton(PayPalTestCase):
+    """These tests are not really unit tests as such they are just designed to test
+    the flow from end to end, before drilling into all the specific possibilities
+    and conditions
+    """
+    def test_express_payment(self):
+        """Test end to end we can process an Express Payment in the Sandbox
+        """ 
+        trans = getValidWPPExpressTransaction()
+        
         trans = self.payments.setupRedirect(trans)
-
-        print trans.paypal_express_token 
-        print trans.redirect_url
+        
+        # this seems pretty unconventional for a test
+        webbrowser.open(trans.redirect_url)
+        # grab it back from the tester
+        trans.pay_id = raw_input(">")
+        
+        # now call authorise
+        trans = self.payments.authorise(trans)
+        print trans._raw
+        assert trans.authorised == False
 
          
 
