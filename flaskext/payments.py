@@ -27,55 +27,72 @@ class Payments(object):
     """
 
     def __init__(self, app=None):
-        
         if app is not None:
             self.init_app(app)
 
     def init_app(self, app):
-        """Initializes payment gateway config from the application
-        settings.
+        """Initializes payment gateway from the application settings.
 
         You can use this if you want to set up your Payment instance
         at configuration time.
 
+        Binds to a specific implementation class based on the value
+        in the PAYMENTS_API config value. 
+
         :param app: Flask application instance
 
         """
-        
         # here is the pattern for defaults:
-        # port = 
         # app.config.get('MAIL_PORT', 25)
-        
-        # want to fail early if gateway not properly configured
-        if False:
-            raise PaymentGatewayNotProperlyInitialisedError(Exception)
-        
+       
+        # initialise gateway based on configuration
+        self._init_gateway(app)
+       
         self.testing = app.config['TESTING']
+        self.app = app # this Payments instance reference to the Flask app
 
-        self.app = app
-
-    def process(self, trans):
-        """The transaction is validated and only if valid will the appropriate
-        webservice be invoked.
-
+    def _init_gateway(self, app):
+        """what i'm trying to do here is have some logic to conditionally
+        instantiate a "payment gateway" member depending on the configuration
+        of the PAYMENT_API configuration parameter.
+        
+        want to fail early if gateway not properly configured, so the idea
+        is to delegate to the payment gateway class at this point to give it
+        to the opptunity to validate its configuration and fail if needs be.
         """
-        if trans.validate():
-            return self._doPayPal()
+        self.payment_api = app.config['PAYMENT_API']
+        
+        if self.payment_api == 'PayPal':
+            self.gateway = PayPalGateway(app)
+        else:
+            raise PaymentGatewayNotProperlyInitialisedError(Exception)
+
+    def setupRedirect(self, trans):
+        """Some gateways such as PayPal WPP Express Checkout and Google payments
+        require you to redirect your customer to them first to collect info, 
+        so going to make an explict getRedirect method for these instances.
+
+        Returns the transaction with the redirect url attached. I guess the idea
+        is the app stuffs this in the session and when it gets the user back
+        will call authorise using this transaction.
+        """
+        if trans.validate(): # generic gateway abstract validation 
+            return self.gateway.setupRedirect(trans) # gateway implementation does own
         else: raise PaymentTransactionValidationError()
 
-    def _doPayPal(self):
-        auth = Authorisation()
-        pp = PayPal(    self.app.config['PAYPAL_API_USER'],
-                        self.app.config['PAYPAL_API_PWD'],
-                        self.app.config['PAYPAL_API_SIGNATURE'],
-                        self.app.config['PAYPAL_API_ENDPOINT'],
-                        self.app.config['PAYPAL_API_URL']
-                        )
-        pp_token = pp.SetExpressCheckout(20)
-        auth.express_token = pp.GetExpressCheckoutDetails(pp_token)
-        auth.url= self.app.config['PAYPAL_API_URL'] 
-        return auth
 
+    def authorise(self, trans):
+        """Returns a valid authorisation (accepted or declined) or an error,
+        which can be application or a system error.
+        
+        The transaction is subject to gernic validatation, i.e. does it have
+        necessary fields and do they add up, and only if valid will the
+        instantiated gateway be invoked.
+
+        """
+        if trans.validate(): # generic gateway abstract validation 
+            return self.gateway.authorise(trans) # gateway implementation does own
+        else: raise PaymentTransactionValidationError()
 
 
 class Transaction(object):
@@ -89,8 +106,9 @@ class Transaction(object):
         
         """
         return True
-    
-    def __init__(self, params):
+
+
+    def __init__(self):
         pass
 
 class Authorisation(object):
@@ -130,21 +148,73 @@ class Authorisation(object):
 #    HttpResponseRedirect(url) ## django specific http redirect call for payment
 
 
-import urllib, md5, datetime
+import urllib, datetime
 
-class PayPal:
+class PayPalGateway:
     """ #PayPal utility class"""
     
-    def __init__(self, usr, pwd, sig, endpoint, url):
+    def __init__(self, app):
+        # Need to catch value error and throw as config error
+        try:
+            self._init_API(app)
+        except ValueError:
+            raise PaymentGatewayNotProperlyInitialisedError(Exception)
+            
+    def _init_API(self ,app):
+        """ initialises any stuff needed for the payment gateway API and should
+        fail if anything is invalid or missing
+        """
         self.signature_values = {
-        'USER' : usr, 
-        'PWD' : pwd,
-        'SIGNATURE' : sig,
-        'VERSION' : '53.0',
+        'USER' : app.config['PAYPAL_API_USER'], 
+        'PWD' : app.config['PAYPAL_API_PWD'],
+        'SIGNATURE' : app.config['PAYPAL_API_SIGNATURE'],
+        'VERSION' : '54.0',
         }
-        self.API_ENDPOINT = endpoint
-        self.PAYPAL_URL = url 
+        self.API_ENDPOINT = app.config['PAYPAL_API_ENDPOINT']
+        self.PAYPAL_URL =  app.config['PAYPAL_API_URL']
         self.signature = urllib.urlencode(self.signature_values) + "&"
+    
+
+    def setupRedirect(self, trans):
+        """ this is for WPP only"""
+        try:
+            if trans.type == 'Express':
+                try:
+                    return self._setupExpressTransfer(trans)
+                except:
+                    raise PaymentWebserviceSystemError() 
+            else:
+                raise PaymentTransactionValidationError()
+        except AttributeError:
+            raise PaymentTransactionValidationError()
+
+
+    def _setupExpressTransfer(self, trans):
+        """ add details to transaction to allow it to be forwarded to the 
+        third party gateway 
+        """
+        trans.paypal_express_token = self.SetExpressCheckout(trans.amount)
+        trans.redirect_url = self.PAYPAL_URL + trans.paypal_express_token             
+        return trans
+
+    # Public methods of gateway 'interface'
+    def authorise(self, trans):
+        """Examines the type of transaction passed in and delegates to either
+        the express payments flow or the direct payments flow, where further
+        validation can take place.
+
+        If its not a type of transaction which this gateway can process then it
+        will throw its dummy out of the pram.
+        """
+        try:
+            if trans.type == 'Express':
+                return self._processExpress(trans)
+            elif trans.type == 'Direct':
+                pass # not implemented yet
+            else: raise PaymentTransactionValidationError()
+        except AttributeError:
+            raise PaymentTransactionValidationError()
+
 
     # API METHODS
     def SetExpressCheckout(self, amount):

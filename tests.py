@@ -10,7 +10,14 @@ from flaskext.payments import Payments, Transaction, Authorisation, PaymentTrans
 class TestCase(unittest.TestCase):
 
     TESTING = True
+
+    # Based Gateway and Plugin from Martin Fowler PoAEE, which class to bind to
+    # use for payments specified in configuration, and bound by the factory
+    # Payments at startup.
+    PAYMENT_API = 'PayPal'
     
+    # Define PayPal Specific Stuff
+
     PAYPAL_API_ENDPOINT = 'https://api-3t.sandbox.paypal.com/nvp'
     PAYPAL_API_URL = 'https://www.sandbox.paypal.com/webscr&cmd=_express-checkout&token='
    
@@ -32,8 +39,15 @@ class TestCase(unittest.TestCase):
         self.ctx.pop()
 
 
+def getValidExpressTransaction():
+    trans = Transaction()
+    trans.type = 'Express'
+    trans.amount = 100
+    trans.currency = "how?"
+    return trans
+
 def getValidTransaction():
-    trans = Transaction({
+    vals = {
         'amt': '9.95',
         'inv': 'inv',
         'custom': 'custom',
@@ -52,8 +66,7 @@ def getValidTransaction():
         'acct': '4797503429879309',
         'creditcardtype': 'visa',
         'ipaddress': '10.0.1.199',
-        })
-    return trans
+        }
 
 class TestTransaction(TestCase):
 
@@ -72,13 +85,13 @@ class TestPayments(TestCase):
 
     def test_process(self):
 
-        trans = getValidTransaction()
+        trans = getValidExpressTransaction()
 
-        auth = self.payments.process(trans)
+        trans = self.payments.setupRedirect(trans)
 
-        print auth.express_token 
-        print auth.url
+        print trans.paypal_express_token 
+        print trans.redirect_url
 
-        assert auth.status 
+         
 
 
