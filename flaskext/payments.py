@@ -10,13 +10,9 @@
     :license: BSD, see LICENSE for more details.
 """
 
-class PaymentGatewayNotProperlyInitialisedError(Exception): pass
-
-class PaymentTransactionNotValidForConfiguredGatewayError(Exception): pass
-
-class PaymentTransactionValidationError(Exception): pass
-
-class PaymentWebServiceSystemError(Exception): pass
+class PaymentsConfigurationError(Exception): pass
+class PaymentsValidationError(Exception): pass
+class PaymentsErrorFromGateway(Exception): pass
 
 class Payments(object):
     """
@@ -57,13 +53,14 @@ class Payments(object):
         is to delegate to the payment gateway class at this point to give it
         to the opptunity to validate its configuration and fail if needs be.
         """
-        self.payment_api = app.config['PAYMENT_API']
-        
-        if self.payment_api == 'PayPal': # only PalPal is possible ATM
-            self.gateway = PayPalGateway(app)
-        else:
-            raise PaymentGatewayNotProperlyInitialisedError(Exception)
+        gateways =  {    'PayPal' : PayPalGateway 
+                    }
+        try:
+            self.gateway = gateways[app.config['PAYMENT_API']](app)
+        except KeyError:
+            raise PaymentsConfigurationError
 
+            
     def setupRedirect(self, trans):
         """Some gateways such as PayPal WPP Express Checkout and Google payments
         require you to redirect your customer to them first to collect info, 
@@ -192,6 +189,9 @@ class PayPalGateway:
     def _authoriseExpress(self, trans):
         """ calls authorise on payment setup via redirect to paypal
         """
+        print trans.paypal_express_token
+        print trans.pay_id
+        print trans.amount
         trans._raw = self.DoExpressCheckoutPayment(trans.paypal_express_token,
                 trans.pay_id, trans.amount)  
         trans.authorised = True 

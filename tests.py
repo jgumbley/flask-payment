@@ -5,7 +5,20 @@ from __future__ import with_statement
 import unittest
 
 from flask import Flask, g
-from flaskext.payments import Payments, Transaction, PaymentTransactionValidationError
+from flaskext.payments import Payments, Transaction
+from flaskext.payments import PaymentsValidationError, PaymentsConfigurationError
+
+class InstantiatingTestCase(unittest.TestCase):
+
+    def test_api_value_set(self):
+        """
+        Payments class is instantiated properly based on PAYMENT_API value
+        """
+        app = Flask(__name__)
+        
+        app.config['PAYMENT_API'] = 'PayPal'
+
+        payments = Payments(app)
 
 class PaymentsTestCase(unittest.TestCase):
     """Base class for test cases for Flask Payments 
@@ -14,12 +27,17 @@ class PaymentsTestCase(unittest.TestCase):
 
     # Which gateway implementation class to bind to for payments specified in 
     # configuration, and bound at startup.
+    #
+    # Throught of using subclasses of Payments but that would mean changes to
+    # the backend require a code change rather than a configration change.
     PAYMENT_API = None
     
     def setUp(self):
         self.app = Flask(__name__)
         self.app.config.from_object(self)
 
+        # to import API details which can't go here as they'll enter scm
+        # and get uploaded to github
         self.loadPrivateConfig()
 
         self.payments = Payments(self.app)
@@ -42,7 +60,6 @@ class PayPalTestCase(PaymentsTestCase):
     def loadPrivateConfig(self):
         # need to keep personal API details out of scm
         self.app.config.from_pyfile('yourpaypal.settings')
-
 
 def getValidWPPExpressTransaction():
     """Convenience helper to get a valid WPP Express Transaction as a starting
