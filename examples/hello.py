@@ -1,10 +1,12 @@
 from datetime import datetime
-from flask import Flask, request, flash, url_for, redirect, \
+from flask import Flask, session, request, flash, url_for, redirect, \
      render_template, abort
 from flaskext.payments import Payments, Transaction
 
 app = Flask(__name__)
 app.config.from_pyfile('hello.cfg')
+app.config.from_pyfile('../yourpaypal.settings')
+
 payments = Payments(app)
 
 @app.route('/')
@@ -16,13 +18,27 @@ def paypal_express_checkout():
     trans = Transaction()
     trans.type = 'Express'
     trans.amount = 100
-    trans.return_url = 'http://www.jgumbley.com'
-    trans.cancel_url = 'http://www.jgumbley.com'
+    trans.return_url = 'http://localhost:5000/paypal-express-complete'
+    trans.cancel_url = 'http://localhost:5000/paypal-express-cancel'
 
-    trans = self.payments.setupRedirect(trans)
+    trans = payments.setupRedirect(trans)
     
-    return redirect(url_for('show_all'))
+    session['trans'] = trans
+    
+    return redirect(trans.redirect_url)
 
+@app.route('/paypal-express-complete')
+def paypal_express_complete():
+    trans = session['trans']
+    payerid = request.values['PayerID'] 
+    
+    trans.pay_id = payerid
+
+    trans = payments.authorise(trans)
+    
+    print trans._raw
+
+    return render_template('confirmation.html')
 
 if __name__ == '__main__':
     app.run()

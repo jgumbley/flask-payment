@@ -111,7 +111,6 @@ class Transaction(object):
         self.authorised = False
         pass
 
-
 # ------------------------------------------------------------------------
 
 import urllib, datetime
@@ -123,8 +122,8 @@ class PayPalGateway:
         # Need to catch value error and throw as config error
         try:
             self._init_API(app)
-        except ValueError:
-            raise PaymentGatewayNotProperlyInitialisedError(Exception)
+        except KeyError:
+            raise PaymentsConfigurationError
             
     def _init_API(self ,app):
         """ initialises any stuff needed for the payment gateway API and should
@@ -139,19 +138,12 @@ class PayPalGateway:
         self.API_ENDPOINT = app.config['PAYPAL_API_ENDPOINT']
         self.PAYPAL_URL =  app.config['PAYPAL_API_URL']
         self.signature = urllib.urlencode(self.signature_values) + "&"
-    
 
     def setupRedirect(self, trans):
         """ this is for WPP only"""
-        try:
-            if trans.type == 'Express':
-                try:
-                    return self._setupExpressTransfer(trans)
-                except:
-                    raise PaymentWebserviceSystemError() 
-            else:
-                raise PaymentTransactionValidationError()
-        except AttributeError:
+        if trans.type == 'Express':
+            return self._setupExpressTransfer(trans)
+        else:
             raise PaymentTransactionValidationError()
 
     # why is this two methods surely this could be easier?
@@ -160,11 +152,13 @@ class PayPalGateway:
         """ add details to transaction to allow it to be forwarded to the 
         third party gateway 
         """
-        trans.paypal_express_token = self.SetExpressCheckout(
+        r = self.SetExpressCheckout(
                 trans.amount,
                 trans.return_url,
                 trans.cancel_url
                 )
+        trans.paypal_express_token = urllib.unquote(r)
+        
         trans.redirect_url = self.PAYPAL_URL + trans.paypal_express_token             
         return trans
 
@@ -177,27 +171,19 @@ class PayPalGateway:
         If its not a type of transaction which this gateway can process then it
         will throw its dummy out of the pram.
         """
-        try:
-            if trans.type == 'Express':
-                return self._authoriseExpress(trans)
-            elif trans.type == 'Direct':
-                pass # not implemented yet
-            else: raise PaymentTransactionValidationError()
-        except AttributeError:
-            raise PaymentTransactionValidationError()
+        if trans.type == 'Express':
+            return self._authoriseExpress(trans)
+        elif trans.type == 'Direct':
+            pass # not implemented yet
+        else: raise PaymentTransactionValidationError()
 
     def _authoriseExpress(self, trans):
         """ calls authorise on payment setup via redirect to paypal
         """
-        print trans.paypal_express_token
-        print trans.pay_id
-        print trans.amount
         trans._raw = self.DoExpressCheckoutPayment(trans.paypal_express_token,
                 trans.pay_id, trans.amount)  
         trans.authorised = True 
         return trans
-        
-
 
     # API METHODS
 
@@ -226,7 +212,6 @@ class PayPalGateway:
             'CANCELURL' : cancel_url, 
             'AMT' : amount,
         }
-
         params_string = self.signature + urllib.urlencode(params)
         response = urllib.urlopen(self.API_ENDPOINT, params_string).read()
         response_token = ""
