@@ -22,7 +22,6 @@ def paypal_express_checkout():
     trans.cancel_url = 'http://localhost:5000/paypal-express-cancel'
 
     trans = payments.setupRedirect(trans)
-    
     session['trans'] = trans
     
     return redirect(trans.redirect_url)
@@ -31,11 +30,9 @@ def paypal_express_checkout():
 def paypal_express_complete():
     trans = session['trans']
     payerid = request.values['PayerID'] 
-    
     trans.pay_id = payerid
 
     trans = payments.authorise(trans)
-    
     session['trans'] = trans
 
     return redirect('/confirm')
@@ -47,8 +44,6 @@ def paypal_direct_payments():
 @app.route('/confirm')
 def confirm():
     trans = session['trans']
-    for attr, value in trans.__dict__.iteritems():
-        print attr, value
     return render_template('confirmation.html', trans=trans)
 
 if __name__ == '__main__':

@@ -16,7 +16,7 @@ from setuptools import setup
 setup(
     name='Flask-Payments',
     version='0.1',
-    url='<enter URL here>',
+    url='http://github.com/LeonigMig/flask-payment/',
     license='BSD',
     author='jgumbley',
     author_email='your-email-here@example.com',
