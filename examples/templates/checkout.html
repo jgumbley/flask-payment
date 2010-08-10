@@ -1,13 +1,25 @@
 {% extends "layout.html" %}
 {% block body %}
-  <form action="" method=post>
-    <p>
-      Title:
-      <input type=text name=title value="{{ request.form.title }}">
-    <p>Text:
-    <p><textarea name=text rows=10 cols=40>{{ request.form.text }}</textarea>
-    <p>
-      <input type=submit value="Create entry">
-      <a href="{{ url_for('paypal_express_checkout') }}">Back to list</a>
-  </form>
+
+<table>
+    <tr><td colspan=3>
+      <img src='/static/flask.JPG'/>
+    </td></tr>
+    <tr>
+        <td>Qty</td>
+        <td>Description</td>
+        <td>Price</td>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td>Stylish Hip Flask</td>
+        <td>$100.00</td>
+    </tr>
+
+</table>      
+
+<ul>
+    <li><a href="{{ url_for('paypal_express_checkout') }}">Express Checkout</a></li>
+    <li><a href="{{ url_for('paypal_direct_payments') }}">Direct Payments</a></li>
+</ul>
 {% endblock %}

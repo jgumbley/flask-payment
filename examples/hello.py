@@ -36,9 +36,20 @@ def paypal_express_complete():
 
     trans = payments.authorise(trans)
     
-    print trans._raw
+    session['trans'] = trans
 
-    return render_template('confirmation.html')
+    return redirect('/confirm')
+
+@app.route('/paypal-direct-payments')
+def paypal_direct_payments():
+    return render_template('fill_in_details.html')
+
+@app.route('/confirm')
+def confirm():
+    trans = session['trans']
+    for attr, value in trans.__dict__.iteritems():
+        print attr, value
+    return render_template('confirmation.html', trans=trans)
 
 if __name__ == '__main__':
     app.run()

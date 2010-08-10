@@ -1,13 +1,11 @@
 {% extends "layout.html" %}
 {% block body %}
-  <form action="" method=post>
-    <p>
-      Title:
-      <input type=text name=title value="{{ request.form.title }}">
-    <p>Text:
-    <p><textarea name=text rows=10 cols=40>{{ request.form.text }}</textarea>
-    <p>
-      <input type=submit value="Create entry">
-      <a href="{{ url_for('paypal_express_checkout') }}">Back to list</a>
-  </form>
+
+<h2>Thanks for your purchase.</h2>
+
+<table>
+    {% for attr, value in trans.__dict__.iteritems()  %}
+    <tr><td>{{ attr }}</td><td>{{ value }}</td></tr>
+    {% endfor %}
+</table>
 {% endblock %}
