@@ -18,7 +18,7 @@ class InstantiatingTestCase(unittest.TestCase):
         
         app.config['PAYMENT_API'] = 'PayPal'
 
-        payments = Payments(app)
+        self.assertRaises(PaymentsConfigurationError, Payments, app)
 
 class PaymentsTestCase(unittest.TestCase):
     """Base class for test cases for Flask Payments 
@@ -95,5 +95,4 @@ class WalkingSkeleton(PayPalTestCase):
         
         # now call authorise
         trans = self.payments.authorise(trans)
-        print trans._raw
-        assert trans.authorised == False
+        assert trans.authorised == True

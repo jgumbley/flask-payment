@@ -1,6 +1,4 @@
-from datetime import datetime
-from flask import Flask, session, request, flash, url_for, redirect, \
-     render_template, abort
+from flask import Flask, session, request, redirect, render_template
 from flaskext.payments import Payments, Transaction
 
 app = Flask(__name__)
