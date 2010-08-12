@@ -1,4 +1,4 @@
-from flask import Flask, session, request, redirect, render_template
+from flask import Flask, session, request, redirect, render_template, url_for
 from flaskext.payments import Payments, Transaction
 
 app = Flask(__name__)
@@ -16,8 +16,8 @@ def paypal_express_checkout():
     trans = Transaction()
     trans.type = 'Express'
     trans.amount = 100
-    trans.return_url = 'http://localhost:5000/paypal-express-complete'
-    trans.cancel_url = 'http://localhost:5000/paypal-express-cancel'
+    trans.return_url = url_for('paypal_express_complete', _external=True)
+    trans.cancel_url = url_for('confirm', _external=True)
 
     trans = payments.setupRedirect(trans)
     session['trans'] = trans
